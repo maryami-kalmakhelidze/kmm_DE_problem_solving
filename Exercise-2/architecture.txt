@@ -1,0 +1,74 @@
+Service → Promtail
+Promtail – агент сбора и предобработки логов:
+•	Автообнаружение новых лог-файлов
+•	Парсинг и структурирование
+•	Добавление метаданных (hostname, service_name)
+
+Promtail → Loki
+Loki - Хранилище логов
+Компоненты:
+•	Distributor: Прием логов через HTTP API
+•	Ingester: Буферизация и запись
+•	Querier: Обработка запросов из Grafana
+
+
+Loki → Grafana
+Grafana – визуализация:
+Подключение к Loki как datasource.
+•	Log Explorer: {job="payment-service", level="error"}
+•	Dashboards: Графики частоты ошибок
+•	Создание правил алертинга через LogQL
+
+Grafana → HDFS
+HDFS - хранение холодных данных
+hdfs://logs/prod/payment/2025/06/23/163309-1b9d.snappy.parquet
+
+
+Grafana → Alertmanager
+Alertmanager – обработка сработавших алертов:
+•	Группировка алертов (cluster=prod, service=payment)
+•	Дедупликация
+•	Маршрутизация по критичности (severity="critical")
+Можно настроить маршрутизацию оповещений в зависимости от их источников или уровней критичности.
+Например, severity= "critical" → Outlook, severity="custom" → Teams
+
+Alertmanager → Kafka
+Kafka - отправка сообщений:
+Пример:
+{ "timestamp": "2025-06-23T12:00:00Z",
+  "service": "payment",
+  "message": "DB connection failed",
+  "severity": "critical" }
+
+
+Kafka → PostgreSQL
+PostgreSQL – хранение алертов:
+•	История инцидентов, анализ SLA
+Схема:
+CREATE TABLE alerts (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT NOW(),
+    service VARCHAR(50) NOT NULL,
+    severity VARCHAR(20) NOT NULL,
+    message TEXT,
+    resolved BOOLEAN DEFAULT FALSE
+);
+
+
+Kafka → Outlook producer
+Outlook producer - преобразование алертов в email-формат:
+•	Создание HTML-шаблонов
+•	Обработка ошибок отправки
+•	Регулировка частоты отправки
+
+Outlook producer → SMTP Server
+SMTP Server - отправка почты
+
+SMTP Server → Outlook Mailbox
+Outlook Mailbox - получение уведомлений
+Пример:
+[CRITICAL] Payment Service Failure
+Service: payment-service
+Time: 2025-06-23 14:30:45 UTC
+Message: Database connection failed
+View in Grafana: https://grafana.example.com/explore
